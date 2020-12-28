@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>Algebraic Data Types In Scala | Basti’s blog</title>
+<meta name="generator" content="Jekyll v4.1.1" />
+<meta property="og:title" content="Algebraic Data Types In Scala" />
+<meta name="author" content="Basti" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Algebraic Data Types In Scala Object-Oriented Meets Functional — Scala’s punchline, https://scala-lang.org Scala claims to unite object-oriented and functional programming, and offers a rich set features from both worlds. Developers coming from object-oriented languages—Java in particular—quickly adopt the object-oriented features of Scala but often struggle to find their way around functional programming. Some aspects of functional programming found their way into object-oriented languages: Higher order functions or combinators like map and filter appear in today’s C# or Java code, and even a preference for immutable data structures spreads out into conventional object-oriented languages. But algebraic data types (ADTs) still do not appear in object-oriented programming although these enable the true power of functional programming: Types well-founded on theory let us model the problem domain in types and thus help us write correct-by-construction code which provides a higher level of compile-time confidence than possible with the type systems of most object-oriented languages. This article aims to help developers from object-oriented languages understand what it means, and become familiar with the basic set of algebraic data types commonly used in functional programming and its appearance in Scala." />
+<meta property="og:description" content="Algebraic Data Types In Scala Object-Oriented Meets Functional — Scala’s punchline, https://scala-lang.org Scala claims to unite object-oriented and functional programming, and offers a rich set features from both worlds. Developers coming from object-oriented languages—Java in particular—quickly adopt the object-oriented features of Scala but often struggle to find their way around functional programming. Some aspects of functional programming found their way into object-oriented languages: Higher order functions or combinators like map and filter appear in today’s C# or Java code, and even a preference for immutable data structures spreads out into conventional object-oriented languages. But algebraic data types (ADTs) still do not appear in object-oriented programming although these enable the true power of functional programming: Types well-founded on theory let us model the problem domain in types and thus help us write correct-by-construction code which provides a higher level of compile-time confidence than possible with the type systems of most object-oriented languages. This article aims to help developers from object-oriented languages understand what it means, and become familiar with the basic set of algebraic data types commonly used in functional programming and its appearance in Scala." />
+<link rel="canonical" href="https://swsnr.de/2018/02/24/algebraic-data-types-in-scala.html" />
+<meta property="og:url" content="https://swsnr.de/2018/02/24/algebraic-data-types-in-scala.html" />
+<meta property="og:site_name" content="Basti’s blog" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-02-24T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Algebraic Data Types In Scala" />
+<script type="application/ld+json">
+{"datePublished":"2018-02-24T00:00:00+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://swsnr.de/2018/02/24/algebraic-data-types-in-scala.html"},"description":"Algebraic Data Types In Scala Object-Oriented Meets Functional — Scala’s punchline, https://scala-lang.org Scala claims to unite object-oriented and functional programming, and offers a rich set features from both worlds. Developers coming from object-oriented languages—Java in particular—quickly adopt the object-oriented features of Scala but often struggle to find their way around functional programming. Some aspects of functional programming found their way into object-oriented languages: Higher order functions or combinators like map and filter appear in today’s C# or Java code, and even a preference for immutable data structures spreads out into conventional object-oriented languages. But algebraic data types (ADTs) still do not appear in object-oriented programming although these enable the true power of functional programming: Types well-founded on theory let us model the problem domain in types and thus help us write correct-by-construction code which provides a higher level of compile-time confidence than possible with the type systems of most object-oriented languages. This article aims to help developers from object-oriented languages understand what it means, and become familiar with the basic set of algebraic data types commonly used in functional programming and its appearance in Scala.","url":"https://swsnr.de/2018/02/24/algebraic-data-types-in-scala.html","@type":"BlogPosting","author":{"@type":"Person","name":"Basti"},"headline":"Algebraic Data Types In Scala","dateModified":"2018-02-24T00:00:00+00:00","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link type="application/atom+xml" rel="alternate" href="https://swsnr.de/feed.xml" title="Basti’s blog" /><link rel="stylesheet" href="/style.css">
+    <meta name="color-scheme" content="dark light">
+</head>
+
+<body>
+    <main>
+        <article itemscope itemtype="http://schema.org/BlogPosting">
+    <header>
+        <aside><time datetime="2018-02-24T00:00:00+00:00" itemprop="datePublished">
+                Published on 2018-02-24
+            </time></aside>
+    </header>
+
+    <div><h1 id="algebraic-data-types-in-scala">Algebraic Data Types In Scala</h1>
+
+<blockquote>
+  <p>Object-Oriented Meets Functional<br />
+— <cite>Scala’s punchline, <a href="https://scala-lang.org">https://scala-lang.org</a></cite></p>
+</blockquote>
+
+<p>Scala claims to unite object-oriented and functional programming, and offers a rich set features from both worlds.
+Developers coming from object-oriented languages—Java in particular—quickly adopt the object-oriented features of Scala but often struggle to find their way around functional programming.
+Some aspects of functional programming found their way into object-oriented languages:  Higher order functions or combinators like <code class="language-plaintext highlighter-rouge">map</code> and <code class="language-plaintext highlighter-rouge">filter</code> appear in today’s C# or Java code, and even a preference for immutable data structures spreads out into conventional object-oriented languages.</p>
+
+<p>But algebraic data types (ADTs) still do not appear in object-oriented programming although these enable the true power of functional programming:  Types well-founded on theory let us model the problem domain in types and thus help us write correct-by-construction code which provides a higher level of compile-time confidence than possible with the type systems of most object-oriented languages.
+This article aims to help developers from object-oriented languages understand what it means, and become familiar with the basic set of algebraic data types commonly used in functional programming and its appearance in Scala.</p>
+
+<!--more-->
+
+<h2 id="simple-types">Simple Types</h2>
+
+<p>Developers from object-oriented programming languages often conflate “types” with “classes” but in fact represent a much simpler, yet more powerful concept.
+For this article we define “type” as just a name for a <em>set of values</em>.
+We can define a <em>Boolean</em> type with standard set notation now:</p>
+
+<figure>
+V(Boolean) = {<code>true</code>, <code>false</code>}
+</figure>
+
+<p>This type has just two values, the well-known boolean constants <code class="language-plaintext highlighter-rouge">true</code> and <code class="language-plaintext highlighter-rouge">false</code>.
+We can also define more complex types, eg, <em>Int</em> for all integers, positive and negative:</p>
+
+<figure>
+V(Int) = {n | n ∈ ℤ}
+</figure>
+
+<p>Or a <em>String</em> as sequence of characters where <em>Unicode</em> denotes the set of all unicode code points:</p>
+
+<figure>
+V(String) = {c<sub>0</sub>c<sub>1</sub>c<sub>2</sub>… | c<sub>0</sub>c<sub>1</sub>c<sub>2</sub>… ∈ Unicode}
+</figure>
+
+<h2 id="combined-types">Combined Types</h2>
+
+<p>We can combine these simple types in two fundamental ways:
+Either as a group of values of other types, ie, a <em>product type</em>, or as an alternative between values of different types, ie, a <em>coproduct type</em> or <em>sum type</em>.
+We can “calculate” with these types just like we can calculate sums and products of numbers, and these types obey similar laws.
+We say they “form an algebra”, hence the name “algebraic data types”.</p>
+
+<h3 id="product-types">Product types</h3>
+
+<p>Formally we can define the <em>product</em> of types<sup id="fnref:product-type" role="doc-noteref"><a href="#fn:product-type" class="footnote">1</a></sup> <em>T<sub>1</sub></em>, <em>T<sub>2</sub></em>, … as follows:</p>
+
+<figure>
+V(P) = {C v<sub>1</sub> v<sub>2</sub> … | v<sub>1</sub> ∈ T<sub>1</sub> ∧ v<sub>2</sub> ∈ T<sub>2</sub> ∧ … }
+</figure>
+
+<p><em>C</em> denotes the <em>constructor</em> of the new type.
+This constructor serves as a “tag” to differentiate between two product types combined of the same types.
+With the help of this tag we can create two <em>different</em> products of, eg, <em>Boolean</em> and <em>Nat</em>, by giving them different constructors.
+The following type introduces a generic pair, for example, one of the most basic product types:</p>
+
+<figure>
+⋀ S, T. V(Pair[S, T]) = {(s, t) | s ∈ V(S) ∧ t ∈ V(T)}
+</figure>
+
+<p>We use the common infix notation <em>(v, t)</em> by which pairs appear in almost all contemporary programming languages, from Python to Haskell.
+Now <em>(42, “Donald Duck”)</em> becomes a value of the type <em>Pair[Int, String]</em>.
+By using a different constructor we can also give this generic pair a special name, like <em>User</em> with an ID and a name:</p>
+
+<figure>
+V(User) = { User i s | i ∈ V(Int) ∧ s ∈ V(String)}
+</figure>
+
+<p>We follow the convention to name the constructor like the type, but we can also choose different names for each.
+This new type combines the <em>same</em> types as <em>Pair[Int, String]</em> but holds <em>different</em> values and thus becomes distinct from a pair.
+<em>User 42 “Donald Duck”</em> is a value of type <em>User</em>, but not of <em>Pair[Int, String]</em>,</p>
+
+<h3 id="sum-types">Sum types</h3>
+
+<p>Like a product combines values of different types at the same time a <em>sum</em> type<sup id="fnref:sum-type" role="doc-noteref"><a href="#fn:sum-type" class="footnote">2</a></sup> provides an alternative between values of different types.
+Formally we can define a <em>sum</em> of types <em>T<sub>1</sub></em>, <em>T<sub>2</sub></em>, … as follows:</p>
+
+<figure>
+V(S) = {C<sub>1</sub> v<sub>1</sub> | v<sub>1</sub> ∈ T<sub>1</sub>} ∪ {C<sub>2</sub> v<sub>2</sub> | v<sub>2</sub> ∈ T<sub>2</sub>} ∪ …
+</figure>
+
+<p>Again <em>C<sub>1</sub></em>, <em>C<sub>2</sub></em>, … denote constructors where each constructor lifts another constituent type to the sum type.
+We can now define the common <em>Either</em> type, as an alternative between two types:</p>
+
+<figure>
+⋀ L, R. V(Either[L, R]) = {Left l | l ∈ V(L)} ∪ {Right r | r ∈ V(R)}
+</figure>
+
+<p>Now we can use the type <em>Either[String, User]</em> to represent the result of finding a user in a database.
+In case of error we return <em>Left “User not found”</em>—which strictly speaking is of type <em>Either[String, T]</em> for any <em>T</em>—otherwise we return <em>Right user</em> where <em>user</em> is a value of type <em>User</em>.</p>
+
+<h2 id="types-in-scala">Types in Scala</h2>
+
+<p>In Scala we can already use pairs and tuples—the standard library includes these—and we can also define our own products with <em>case classes</em>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="o">(</span><span class="mi">42</span><span class="o">,</span> <span class="s">"Donald Duck"</span><span class="o">)</span>
+<span class="n">res0</span><span class="k">:</span> <span class="o">(</span><span class="kt">Int</span><span class="o">,</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span> <span class="o">(</span><span class="mi">42</span><span class="o">,</span><span class="nc">Donald</span> <span class="nc">Duck</span><span class="o">)</span>
+<span class="o">&gt;</span> <span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">User</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span>
+<span class="o">&gt;</span> <span class="nc">User</span><span class="o">(</span><span class="mi">42</span><span class="o">,</span> <span class="s">"Donald Duck"</span><span class="o">)</span>
+<span class="n">res1</span><span class="k">:</span> <span class="kt">User</span> <span class="o">=</span> <span class="nc">User</span><span class="o">(</span><span class="mi">42</span><span class="o">,</span><span class="nc">Donald</span> <span class="nc">Duck</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>Scala also supports sum type, but lacks a syntax for these.
+A sum type like <code class="language-plaintext highlighter-rouge">Either</code> looks straight-forward in Haskell:</p>
+
+<div class="language-haskell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kr">data</span>  <span class="kt">Either</span> <span class="n">a</span> <span class="n">b</span>  <span class="o">=</span>  <span class="kt">Left</span> <span class="n">a</span> <span class="o">|</span> <span class="kt">Right</span> <span class="n">b</span>
+</code></pre></div></div>
+
+<p>The same definition in Scala looks considerable more noisy<sup id="fnref:either" role="doc-noteref"><a href="#fn:either" class="footnote">3</a></sup>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">sealed</span> <span class="k">trait</span> <span class="nc">Either</span><span class="o">[</span><span class="kt">L</span>, <span class="kt">R</span><span class="o">]</span>
+
+<span class="nc">case</span> <span class="k">class</span> <span class="nc">Left</span><span class="o">[</span><span class="kt">L</span>, <span class="kt">R</span><span class="o">](</span><span class="n">value</span><span class="k">:</span> <span class="kt">L</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Either</span><span class="o">[</span><span class="kt">L</span>, <span class="kt">R</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Right</span><span class="o">[</span><span class="kt">L</span>, <span class="kt">R</span><span class="o">](</span><span class="n">value</span><span class="k">:</span> <span class="kt">R</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">Either</span><span class="o">[</span><span class="kt">L</span>, <span class="kt">R</span><span class="o">]</span>
+</code></pre></div></div>
+
+<p>This illustrates the common pattern to define sum types in Scala:  In the absence of first-level support for sum types we must exploit subtyping to achieve the effect of sum types.</p>
+
+<p>We define the type itself as a <em>sealed</em> trait.
+The <code class="language-plaintext highlighter-rouge">sealed</code> keyword forces us to define all subtypes in the same file as the trait and thus allows the Scala compiler to subsequently warn if a pattern match over the type does not match all subtypes (“exhaustiveness check”)<sup id="fnref:abstract" role="doc-noteref"><a href="#fn:abstract" class="footnote">4</a></sup>.
+Then we define each branch of the sum as distinct subclass of the trait, and use the corresponding type parameter as type for the value of either side.
+This use of subtyping has important implications for the ergonomics of the type which we will cover in the section after the next.</p>
+
+<h2 id="shapes-of-generic-types">Shapes of generic types</h2>
+
+<p>If we look at the types in the previous section we notice some similiarity between product types.
+A <em>Pair[Int, String]</em> and our <em>User</em> type have the same <em>shape</em>: Apart from their constructors they have the same values.
+In fact constructors exist just to introduce an “artificial” distinction between otherwise equal sums or products of types, and thus allow us to give different names to the same type to aid understanding of our programs.
+But we can “omit” the constructors and abstract over the shape of these types.</p>
+
+<p>This leads us to the famous [Shapeless][] library for Scala which provides types to abstract over the shape of algebraic data types.
+At the core of Shapeless lies a special <code class="language-plaintext highlighter-rouge">HList</code> type for a heterogenous list—a list where each element has a different type:</p>
+
+<figure>
+⋀ L. V(Left[L]) = {Left l | l ∈ V(L)}<br />
+⋀ R. V(Right[R]) = {Right r | r ∈ V(R)}<br />
+⋀ L, R. V(Either[L, R]) = V(Left[L]) ∪ V(Right[R])
+</figure>
+
+<p>In other words, each alternative of a sum type becomes a <em>distinct</em> type.
+The expression <code class="language-plaintext highlighter-rouge">Left("Foo")</code> has type <code class="language-plaintext highlighter-rouge">Left[String]</code> for an arbitrary <code class="language-plaintext highlighter-rouge">R</code>, not <code class="language-plaintext highlighter-rouge">Either[String, R]</code>.
+We can then <em>widen</em> <code class="language-plaintext highlighter-rouge">Left[String]</code> to <code class="language-plaintext highlighter-rouge">Either[Left, R]</code> by invoking the subtype relation.
+The compiler automatically widens co-variant types<sup id="fnref:variance" role="doc-noteref"><a href="#fn:variance" class="footnote">5</a></sup> but often we do not wish for automatic widening; in particular automatic widening complicates implicit search which in turn impacts type class resolution so libraries like cats and scalaz made most of their types invariant to prevent automatic widening to subtypes.</p>
+
+<p>With invariant types we can find ourselves in a situation where the compiler infers the subtype, ie, a sum-type variant like <code class="language-plaintext highlighter-rouge">Left</code>, but needs the base type, ie, <code class="language-plaintext highlighter-rouge">Either</code>.
+The following (simplified) example with <code class="language-plaintext highlighter-rouge">OptionT</code> and <code class="language-plaintext highlighter-rouge">EitherT</code>—both invariant<sup id="fnref:either-variance" role="doc-noteref"><a href="#fn:either-variance" class="footnote">6</a></sup>—does not compile, for instance:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.data._</span>
+<span class="k">import</span> <span class="nn">cats.Id</span>
+
+<span class="k">sealed</span> <span class="k">trait</span> <span class="nc">Sum</span>
+<span class="k">case</span> <span class="k">object</span> <span class="nc">A</span> <span class="k">extends</span> <span class="nc">Sum</span>
+
+<span class="k">val</span> <span class="nv">res</span><span class="k">:</span> <span class="kt">EitherT</span><span class="o">[</span><span class="kt">Id</span>, <span class="kt">Sum</span>, <span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">id</span> <span class="k">&lt;-</span> <span class="nv">OptionT</span><span class="o">.</span><span class="py">pure</span><span class="o">[</span><span class="kt">Id</span><span class="o">](</span><span class="mi">42</span><span class="o">).</span><span class="py">toRight</span><span class="o">(</span><span class="n">A</span><span class="o">)</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">id</span>
+</code></pre></div></div>
+
+<p>The compiler complains:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>type mismatch;
+ found   : cats.data.EitherT[cats.Id,A.type,Int]
+ required: cats.data.EitherT[cats.Id,Sum,Int]
+Note: A.type &lt;: Sum, but class EitherT is invariant in type A.
+You may wish to define A as +A instead. (SLS 4.5)
+</code></pre></div></div>
+
+<p>We must explicitly downcast to <code class="language-plaintext highlighter-rouge">Sum</code> with a type ascription to make the code compile:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">id</span> <span class="k">&lt;-</span> <span class="nv">OptionT</span><span class="o">.</span><span class="py">pure</span><span class="o">[</span><span class="kt">Id</span><span class="o">](</span><span class="mi">42</span><span class="o">).</span><span class="py">toRight</span><span class="o">(</span><span class="n">A</span> <span class="k">:</span> <span class="kt">Sum</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>This issue appears frequently and thus impacts the ergonomics of sum types in Scala, in particular when it causes much worse and less understandable compiler errors than the one above.
+It appears so frequently that cats and scalaz even have their own family of functions to help with subtyping.
+The <code class="language-plaintext highlighter-rouge">Functor</code> type also provides <code class="language-plaintext highlighter-rouge">widen</code> to widen the type of the functor argument:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&gt; A.some.widen
+res10: Option[A.type] = Some(A)
+&gt; A.some.widen[Sum]
+res11: Option[Sum] = Some(A)
+</code></pre></div></div>
+
+<p>Likewise <code class="language-plaintext highlighter-rouge">BiFunctor</code> (a functor with two “sides”, like <code class="language-plaintext highlighter-rouge">Either</code>) also has a <code class="language-plaintext highlighter-rouge">leftWiden</code> which we can use instead of the type ascription above<sup id="fnref:unification" role="doc-noteref"><a href="#fn:unification" class="footnote">7</a></sup>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">id</span> <span class="k">&lt;-</span> <span class="nv">OptionT</span><span class="o">.</span><span class="py">pure</span><span class="o">[</span><span class="kt">Id</span><span class="o">](</span><span class="mi">42</span><span class="o">).</span><span class="py">toRight</span><span class="o">(</span><span class="n">A</span><span class="o">).</span><span class="py">leftWiden</span>
+</code></pre></div></div>
+
+<p>While these functions provide some convenience to cope with subtyping, all in all ergonomics of sum types often falls short of what other functional languages like Haskell—which lack subtyping—can provide.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>Product types combine different types into a new type; sum types describe an alternative of other types.
+In Scala the former appear as simple and well-known case classes, whereas the latter have a more intricate representation as subtypes of sealed traits or classes.
+In some cases this subtyping in sum types interferes with type inference and invariance which makes ADTs in Scala less ergonomic than in other languages like Haskell.
+Algebraic data types have similar shapes, and we can abstract over these shapes to write generic programs over all kinds of sum or product types.
+The famous shapeless library provides the necessary infrastructure for this abstraction—in particular a heterogeneous list type as generalization of tuples and generic types to convert concrete algebraic types into the corresponding heterogeneous list.</p>
+
+<p>We hope that this article helped you understand how algebraic data types work, how they appear in Scala, and what the shapeless library contributes to generic programming.</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:product-type" role="doc-endnote">
+      <p>The name “product type” originates from a branch of mathematics called “category theory” a denotes a fundamental way to combine objects in a category.
+A product type resembles this combination with regards to programming language types, hence the name.
+We spare category theory in this article—<a href="https://bartoszmilewski.com/2015/01/07/products-and-coproducts/">Products and Coproducts</a> from <a href="https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/">Category Theory for Programmers</a> by <a href="https://bartoszmilewski.com/about/">Bartosz Milewski</a> provides a gentle introduction to products and coproducts in category theory—but a look at the size of (the set of values of) a product type in relation to the sizes its constituent types gives an intuition about the meaning of the name “product type”.
+We observe that the size of the product type in fact equals the <em>product</em> of the sizes of its constituent types: |V(P)| = |V(T<sub>1</sub>)| · |V(T<sub>2</sub>)| · … <a href="#fnref:product-type" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:sum-type" role="doc-endnote">
+      <p>We observe that the size of a sum type follows a similar analogy as the size of a product type.
+A sum type has just as many values as the sum of its constituent types: |V(S)| = |V(T<sub>1</sub>)| + |V(T<sub>2</sub>)| + ….
+The more formal name <em>co-product</em> originates from category theory as well.
+The prefix <em>co-</em> indicates that category theory considers a sum in some ways as the opposite of a product. <a href="#fnref:sum-type" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:either" role="doc-endnote">
+      <p>We simplify the definition of <code class="language-plaintext highlighter-rouge">Either</code> for this article.
+In particular we omit all methods on <code class="language-plaintext highlighter-rouge">Either</code> and elide variance annotations.
+For the actual definition see <a href="https://github.com/scala/scala/blob/v2.12.4/src/library/scala/util/Either.scala#L1">scala.util.Either</a>. <a href="#fnref:either" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:abstract" role="doc-endnote">
+      <p>Instead of a trait we can use a sealed <em>abstract</em> class—in case we need to pass values to the base class, because Scala does not support trait parameters yet.
+Dotty will add these to Scala. <a href="#fnref:abstract" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:variance" role="doc-endnote">
+      <p>The article <a href="https://typelevel.org/blog/2016/02/04/variance-and-functors.html">Of variance and functors</a> provides an in-depth explanation of variance and its effects in types. <a href="#fnref:variance" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:either-variance" role="doc-endnote">
+      <p>We cannot use <code class="language-plaintext highlighter-rouge">Either</code> in this example—historically Scala made <code class="language-plaintext highlighter-rouge">Either</code> covariant. <a href="#fnref:either-variance" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:unification" role="doc-endnote">
+      <p>This code makes use of partial unification, see <a href="https://typelevel.org/cats/faq.html#si-2712">Cats FAQ</a>. <a href="#fnref:unification" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+</div>
+</article>
+
+    </main>
+    <footer>
+        <a href="/">Home</a> · <a href="/privacy.html">Privacy Policy</a> · <a href="/feed.xml">Atom Feed</a><br>
+        Copyright (c) Sebastian Wiesner · Licensed under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a><br>
+        Last update 2020-12-28
+        <!-- TODO: license -->
+    </footer>
+</body>
+
+</html>

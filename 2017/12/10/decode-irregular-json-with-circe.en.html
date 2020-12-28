@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>Decode Irregular Json With Circe.en | Basti’s blog</title>
+<meta name="generator" content="Jekyll v4.1.1" />
+<meta property="og:title" content="Decode Irregular Json With Circe.en" />
+<meta name="author" content="Basti" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Decode irregular JSON with Circe The popular CI server Jenkins has a JSON API to access builds, but its JSON has a rather strange shape: Relevant information sits in a generic actions array containing objects of various different shapes (even empty objects for whatever reason):" />
+<meta property="og:description" content="Decode irregular JSON with Circe The popular CI server Jenkins has a JSON API to access builds, but its JSON has a rather strange shape: Relevant information sits in a generic actions array containing objects of various different shapes (even empty objects for whatever reason):" />
+<link rel="canonical" href="https://swsnr.de/2017/12/10/decode-irregular-json-with-circe.en.html" />
+<meta property="og:url" content="https://swsnr.de/2017/12/10/decode-irregular-json-with-circe.en.html" />
+<meta property="og:site_name" content="Basti’s blog" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-12-10T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Decode Irregular Json With Circe.en" />
+<script type="application/ld+json">
+{"datePublished":"2017-12-10T00:00:00+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://swsnr.de/2017/12/10/decode-irregular-json-with-circe.en.html"},"description":"Decode irregular JSON with Circe The popular CI server Jenkins has a JSON API to access builds, but its JSON has a rather strange shape: Relevant information sits in a generic actions array containing objects of various different shapes (even empty objects for whatever reason):","url":"https://swsnr.de/2017/12/10/decode-irregular-json-with-circe.en.html","@type":"BlogPosting","author":{"@type":"Person","name":"Basti"},"headline":"Decode Irregular Json With Circe.en","dateModified":"2017-12-10T00:00:00+00:00","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link type="application/atom+xml" rel="alternate" href="https://swsnr.de/feed.xml" title="Basti’s blog" /><link rel="stylesheet" href="/style.css">
+    <meta name="color-scheme" content="dark light">
+</head>
+
+<body>
+    <main>
+        <article itemscope itemtype="http://schema.org/BlogPosting">
+    <header>
+        <aside><time datetime="2017-12-10T00:00:00+00:00" itemprop="datePublished">
+                Published on 2017-12-10
+            </time></aside>
+    </header>
+
+    <div><h1 id="decode-irregular-json-with-circe">Decode irregular JSON with Circe</h1>
+
+<p>The popular CI server <a href="https://jenkins-ci.org">Jenkins</a> has a JSON API to access
+builds, but its JSON has a rather strange shape:  Relevant information sits in a
+generic <code class="language-plaintext highlighter-rouge">actions</code> array containing objects of various different shapes (even
+empty objects for whatever reason):</p>
+
+<!--more-->
+
+<h2 id="the-json">The JSON</h2>
+
+<p>The array looks as follows (converted to YAML and stripped of some irrelevant
+parts):</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">actions</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">parameters</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">SERVICE_BUILD</span>
+      <span class="na">value</span><span class="pi">:</span> <span class="s1">'</span><span class="s">2840'</span>
+    <span class="c1"># […]</span>
+    <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">GIT_COMMIT</span>
+      <span class="na">value</span><span class="pi">:</span> <span class="s">922cc937eb9c9142ebf0d8672a2b13f5fd28ae3e</span>
+  <span class="pi">-</span> <span class="na">causes</span><span class="pi">:</span> <span class="c1"># …</span>
+  <span class="pi">-</span> <span class="pi">{}</span>
+  <span class="pi">-</span> <span class="na">buildsByBranchName</span><span class="pi">:</span>
+      <span class="s">refs/remotes/origin/master</span><span class="pi">:</span>
+        <span class="c1"># …</span>
+    <span class="na">lastBuiltRevision</span><span class="pi">:</span>
+      <span class="na">SHA1</span><span class="pi">:</span> <span class="s">922cc937eb9c9142ebf0d8672a2b13f5fd28ae3e</span>
+      <span class="na">branch</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">SHA1</span><span class="pi">:</span> <span class="s">922cc937eb9c9142ebf0d8672a2b13f5fd28ae3e</span>
+        <span class="na">name</span><span class="pi">:</span> <span class="s">refs/remotes/origin/master</span>
+    <span class="na">scmName</span><span class="pi">:</span> <span class="s1">'</span><span class="s">'</span>
+  <span class="pi">-</span> <span class="pi">{}</span>
+</code></pre></div></div>
+
+<p>We are interested in <code class="language-plaintext highlighter-rouge">lastBuiltRevision.SHA1</code>.</p>
+
+<h2 id="decode-actions-into-a-scala-adt">Decode actions into a Scala ADT</h2>
+
+<p>A <a href="https://circe.github.io/circe/">Circe</a> <code class="language-plaintext highlighter-rouge">Decoder</code> for <code class="language-plaintext highlighter-rouge">lastBuiltRevision</code> is straigt-forward:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">io.circe._</span>
+
+<span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">LastBuiltRevision</span><span class="o">(</span><span class="n">sha1</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span>
+
+<span class="k">object</span> <span class="nc">LastBuiltRevision</span> <span class="o">{</span>
+  <span class="k">implicit</span> <span class="k">val</span> <span class="nv">lastBuiltRevisionDecoder</span>
+    <span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">LastBuiltRevision</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nv">Decoder</span><span class="o">.</span><span class="py">forProduct1</span><span class="o">(</span><span class="s">"SHA1"</span><span class="o">)(</span><span class="nc">LastBuiltRevision</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>For <code class="language-plaintext highlighter-rouge">actions</code> we create an ADT modelling all shapes we’re interested in and
+define an <code class="language-plaintext highlighter-rouge">actionDecoder</code> which simplies tries all possible shapes until one
+fits, via <code class="language-plaintext highlighter-rouge">Decoder.or</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">sealed</span> <span class="k">trait</span> <span class="nc">Action</span>
+
+<span class="k">object</span> <span class="nc">Action</span> <span class="o">{</span>
+  <span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">Git</span><span class="o">(</span><span class="n">lastBuiltRevision</span><span class="k">:</span> <span class="kt">LastBuiltRevision</span><span class="o">)</span>
+      <span class="k">extends</span> <span class="nc">Action</span>
+  <span class="k">object</span> <span class="nc">Git</span> <span class="o">{</span>
+    <span class="k">implicit</span> <span class="k">val</span> <span class="nv">gitDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Git</span><span class="o">]</span> <span class="k">=</span>
+      <span class="nv">Decoder</span><span class="o">.</span><span class="py">forProduct1</span><span class="o">(</span><span class="s">"lastBuiltRevision"</span><span class="o">)(</span><span class="nc">Git</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+  <span class="o">}</span>
+
+  <span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">Parameter</span><span class="o">(</span><span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">value</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span>
+  <span class="k">object</span> <span class="nc">Parameter</span> <span class="o">{</span>
+    <span class="k">implicit</span> <span class="k">val</span> <span class="nv">parameterDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Parameter</span><span class="o">]</span> <span class="k">=</span>
+      <span class="nv">Decoder</span><span class="o">.</span><span class="py">forProduct2</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"value"</span><span class="o">)(</span><span class="nc">Parameter</span><span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">))</span>
+  <span class="o">}</span>
+
+  <span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">Parameters</span><span class="o">(</span><span class="n">parameters</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Parameter</span><span class="o">])</span>
+      <span class="k">extends</span> <span class="nc">Action</span>
+  <span class="k">object</span> <span class="nc">Parameters</span> <span class="o">{</span>
+    <span class="k">implicit</span> <span class="k">val</span> <span class="nv">parametersDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Parameters</span><span class="o">]</span> <span class="k">=</span>
+      <span class="nv">Decoder</span><span class="o">.</span><span class="py">forProduct1</span><span class="o">(</span><span class="s">"parameters"</span><span class="o">)(</span><span class="nc">Parameters</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+  <span class="o">}</span>
+
+  <span class="k">implicit</span> <span class="k">val</span> <span class="nv">actionDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Action</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+    <span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
+    <span class="nc">Decoder</span><span class="o">[</span><span class="kt">Parameters</span><span class="o">].</span><span class="py">widen</span>
+      <span class="o">.</span><span class="py">or</span><span class="o">(</span><span class="nc">Decoder</span><span class="o">[</span><span class="kt">Git</span><span class="o">].</span><span class="py">widen</span><span class="o">)</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>We need to explicitly <code class="language-plaintext highlighter-rouge">widen</code> each decoder to <code class="language-plaintext highlighter-rouge">Decoder[Action]</code>—Circe decoders
+are invariant.</p>
+
+<h2 id="skip-over-unknown-actions">Skip over unknown actions</h2>
+
+<p>We gracefully ignore unknown objects in <code class="language-plaintext highlighter-rouge">actions</code> with another level of
+indirection: An ADT that either represents a known action or the raw JSON of an
+unknown object:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">sealed</span> <span class="k">trait</span> <span class="nc">MaybeAction</span>
+<span class="k">object</span> <span class="nc">MaybeAction</span> <span class="o">{</span>
+  <span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">Known</span><span class="o">(</span><span class="n">action</span><span class="k">:</span> <span class="kt">Action</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">MaybeAction</span>
+  <span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">Unknown</span><span class="o">(</span><span class="n">contents</span><span class="k">:</span> <span class="kt">Json</span><span class="o">)</span>
+      <span class="k">extends</span> <span class="nc">MaybeAction</span>
+
+  <span class="k">implicit</span> <span class="k">val</span> <span class="nv">maybeActionDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">MaybeAction</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">Decoder</span><span class="o">[</span><span class="kt">Action</span><span class="o">]</span>
+      <span class="o">.</span><span class="py">map</span><span class="o">(</span><span class="nc">Known</span><span class="o">)</span>
+      <span class="o">.</span><span class="py">or</span><span class="o">(</span><span class="nc">Decoder</span><span class="o">[</span><span class="kt">Json</span><span class="o">].</span><span class="py">map</span><span class="o">(</span><span class="nc">Unknown</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h2 id="decode-a-build">Decode a build</h2>
+
+<p>We can now decode an entire build into a <code class="language-plaintext highlighter-rouge">Build</code> case class and collect all
+known actions:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">final</span> <span class="k">case</span> <span class="k">class</span> <span class="nc">Build</span><span class="o">(</span><span class="n">actions</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">MaybeAction</span><span class="o">])</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">knownActions</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Action</span><span class="o">]</span> <span class="k">=</span> <span class="nv">actions</span><span class="o">.</span><span class="py">collect</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nv">MaybeAction</span><span class="o">.</span><span class="py">Known</span><span class="o">(</span><span class="n">action</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">action</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+<span class="k">object</span> <span class="nc">Build</span> <span class="o">{</span>
+  <span class="k">implicit</span> <span class="k">val</span> <span class="nv">buildDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Build</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nv">Decoder</span><span class="o">.</span><span class="py">forProduct1</span><span class="o">(</span><span class="s">"actions"</span><span class="o">)(</span><span class="nc">Build</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h2 id="decode-coproducts-of-actions">Decode coproducts of actions</h2>
+
+<p>The <code class="language-plaintext highlighter-rouge">actionDecoder</code> lists all variants explicitly.  With <a href="https://github.com/milessabin/shapeless">Shapeless</a> we can
+reduce the boilerplate and define a generic decoder over all variants of
+<code class="language-plaintext highlighter-rouge">Action</code>: The trait is <code class="language-plaintext highlighter-rouge">sealed</code>, so all variants are known at compilation time
+and can be introspected with type-level programming.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">Action</code> trait is equivalent to the following <code class="language-plaintext highlighter-rouge">shapeless.Coproduct</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">Action</span><span class="o">.</span><span class="py">Git</span> <span class="o">:+:</span> <span class="nv">Action</span><span class="o">.</span><span class="py">Parameters</span> <span class="o">:+:</span> <span class="nv">shapeless</span><span class="o">.</span><span class="py">CNil</span>
+</code></pre></div></div>
+
+<p>Which reads as as ”either an <code class="language-plaintext highlighter-rouge">Action.Git</code> or an <code class="language-plaintext highlighter-rouge">Action.Parameters</code>”.
+A value of this type, eg, an <code class="language-plaintext highlighter-rouge">Action.Parameters</code> value, looks as follows:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Inr</span><span class="o">(</span><span class="nc">Inl</span><span class="o">(</span><span class="nc">Parameters</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span><span class="err">…</span><span class="o">))))</span>
+</code></pre></div></div>
+
+<p>Which reads as “skip the first product alternative (<code class="language-plaintext highlighter-rouge">Inr</code>) and move on to the
+next alternative which has a value (<code class="language-plaintext highlighter-rouge">Inl</code>)”.</p>
+
+<p>We can recursively define a decoder for a Coproduct of <code class="language-plaintext highlighter-rouge">Action</code>s:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">private</span> <span class="k">implicit</span> <span class="k">val</span> <span class="nv">cnilDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">CNil</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nv">Decoder</span><span class="o">.</span><span class="py">failed</span><span class="o">(</span><span class="nc">DecodingFailure</span><span class="o">(</span><span class="s">"CNil"</span><span class="o">,</span> <span class="nv">List</span><span class="o">.</span><span class="py">empty</span><span class="o">))</span>
+
+<span class="k">private</span> <span class="k">implicit</span> <span class="k">def</span> <span class="nf">cconsActionDecoder</span><span class="o">[</span><span class="kt">H</span> <span class="k">&lt;:</span> <span class="kt">Action</span>, <span class="kt">T</span> <span class="k">&lt;:</span> <span class="kt">Coproduct</span><span class="o">](</span>
+    <span class="k">implicit</span> <span class="n">decodeH</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">H</span><span class="o">],</span>
+    <span class="n">decodeT</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+<span class="o">)</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">H</span> <span class="kt">:+:</span> <span class="kt">T</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nv">decodeH</span><span class="o">.</span><span class="py">map</span><span class="o">(</span><span class="nc">Inl</span><span class="o">[</span><span class="kt">H</span>, <span class="kt">T</span><span class="o">]).</span><span class="py">or</span><span class="o">(</span><span class="nv">decodeT</span><span class="o">.</span><span class="py">map</span><span class="o">(</span><span class="nc">Inr</span><span class="o">[</span><span class="kt">H</span>, <span class="kt">T</span><span class="o">]))</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">CNil</code> is the recursion anchor; it serves as a base case for this inductive
+definition, however a coproduct will never have a <code class="language-plaintext highlighter-rouge">CNil</code> value at runtime.  In
+the <code class="language-plaintext highlighter-rouge">cconsActionDecoder</code> step we try to decode to the type of the current
+coproduct position or fall back to decode the remaining coproduct positions, and
+the lift the result back to a <code class="language-plaintext highlighter-rouge">Coproduct</code> by applying the <code class="language-plaintext highlighter-rouge">Inl</code> and <code class="language-plaintext highlighter-rouge">Inr</code>
+constructors to both cases. We define the implicit privately to not let them
+leak into other scopes and wreck havoc of implicit resultions.</p>
+
+<h2 id="decode-actions-from-coproducts">Decode actions from coproducts</h2>
+
+<p>We still need to go from a coproduct of action alternatives to the actual
+<code class="language-plaintext highlighter-rouge">Action</code> type, by means of <code class="language-plaintext highlighter-rouge">shapeless.Generic</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">private</span> <span class="k">def</span> <span class="nf">genericActionDecoder</span><span class="o">[</span><span class="kt">Repr</span> <span class="k">&lt;:</span> <span class="kt">Coproduct</span><span class="o">](</span>
+    <span class="k">implicit</span> <span class="n">genericAction</span><span class="k">:</span> <span class="kt">Generic.Aux</span><span class="o">[</span><span class="kt">Action</span>, <span class="kt">Repr</span><span class="o">],</span>
+    <span class="n">decodeRepr</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Repr</span><span class="o">]</span>
+<span class="o">)</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Action</span><span class="o">]</span> <span class="k">=</span> <span class="nv">decodeRepr</span><span class="o">.</span><span class="py">map</span><span class="o">(</span><span class="nv">genericAction</span><span class="o">.</span><span class="py">from</span><span class="o">)</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="nv">actionDecoder</span><span class="k">:</span> <span class="kt">Decoder</span><span class="o">[</span><span class="kt">Action</span><span class="o">]</span> <span class="k">=</span>
+  <span class="n">genericActionDecoder</span>
+</code></pre></div></div>
+
+<p>As said above the generic representation of a sealed trait is a coproduct; we
+can seamlessly convert between a sealed trait and coproduct of values of that
+trait; in this case we use <code class="language-plaintext highlighter-rouge">Generic</code> to move from a coproduct to the action
+type itself.  Again, the decoder is private to not leak it into other scopes.</p>
+</div>
+</article>
+
+    </main>
+    <footer>
+        <a href="/">Home</a> · <a href="/privacy.html">Privacy Policy</a> · <a href="/feed.xml">Atom Feed</a><br>
+        Copyright (c) Sebastian Wiesner · Licensed under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a><br>
+        Last update 2020-12-28
+        <!-- TODO: license -->
+    </footer>
+</body>
+
+</html>
